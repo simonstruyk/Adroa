@@ -4,9 +4,10 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import passportConfig from "./config/passport.js";
 import authRoutes from "./routes/authRoutes.js";
-import pg from "pg";
+import docRoutes from "./routes/docRoutes.js";
 import dotenv from "dotenv";
-dotenv.config();
+import postgresConfig from "./config/postgres.js";
+dotenv.config({path: "server/.env"});
 
 const app = express();
 const port = 4000;
@@ -22,24 +23,25 @@ app.use(
   })
 );
 
-const db = new pg.Client({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
-db.connect();
+const db = postgresConfig();
 
 passportConfig(app, db);
 
 app.use("/auth", authRoutes());
+app.use("/api/documents", isAuthenticated, docRoutes(db));
 
 const corsOptions = {
   origin: "http://localhost:3000",
   credentials: true,
 };
 app.use(cors(corsOptions));
+
+function isAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: "Unauthorized access" });
+}
 
 // app.get("/", (req, res) => {
 //     console.log("Server Running!");
